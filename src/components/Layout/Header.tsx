@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, LogOut, User, Calendar, Home, Bell, Search, MapPin } from 'lucide-react';
+import { Users, LogOut, User, Calendar, Home, Bell, Search, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import SearchBar from '../Search/SearchBar';
@@ -16,6 +16,7 @@ const Header: React.FC = () => {
     { path: '/', label: 'Home', icon: Home },
     { path: '/dashboard', label: 'Dashboard', icon: Calendar },
     { path: '/businesses', label: 'Businesses', icon: Users },
+    { path: '/messages', label: 'Messages', icon: MessageCircle },
   ];
 
   const handleLogout = async () => {
@@ -124,7 +125,7 @@ const Header: React.FC = () => {
                 </Link>
                 <motion.button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-xl hover:bg-red-50 transition-all duration-300 text-red-600"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 text-red-600"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

@@ -10,6 +10,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import BusinessList from './components/Businesses/BusinessList';
 import BookingForm from './components/Booking/BookingForm';
 import ProfilePage from './components/Profile/ProfilePage';
+import MessagesPage from './components/Messages/MessagesPage';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -66,6 +67,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
             </ProtectedRoute>
           }
         />

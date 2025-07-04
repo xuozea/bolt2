@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Filter, Star, MapPin, Clock, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Filter, Star, MapPin, Clock, Users, MessageCircle, Navigation } from 'lucide-react';
 import { useQueue } from '../../contexts/QueueContext';
 import { Link } from 'react-router-dom';
+import ChatWindow from '../Chat/ChatWindow';
+import MapView from '../Map/MapView';
 
 const BusinessList: React.FC = () => {
   const { businesses, loading } = useQueue();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [showChat, setShowChat] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState<{ id: string; name: string } | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const businessTypes = [
     { value: 'all', label: 'All Types' },
@@ -25,6 +30,11 @@ const BusinessList: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
+  const handleChatOpen = (businessId: string, businessName: string) => {
+    setSelectedBusiness({ id: businessId, name: businessName });
+    setShowChat(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -41,29 +51,35 @@ const BusinessList: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Service</h1>
-        <p className="text-gray-600">Discover top-rated businesses in your area</p>
+        <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Find Your Perfect Service
+        </h1>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          Discover top-rated businesses in your area
+        </p>
       </motion.div>
 
       {/* Search and Filter */}
       <div className="mb-8 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" 
+                 style={{ color: 'var(--text-tertiary)' }} />
           <input
             type="text"
             placeholder="Search businesses or locations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="apple-input w-full pl-10"
           />
         </div>
         
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" 
+                 style={{ color: 'var(--text-tertiary)' }} />
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="appearance-none pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[150px]"
+            className="apple-input pl-10 pr-8 min-w-[150px]"
           >
             {businessTypes.map(type => (
               <option key={type.value} value={type.value}>
@@ -72,7 +88,29 @@ const BusinessList: React.FC = () => {
             ))}
           </select>
         </div>
+
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className={`apple-button-secondary flex items-center space-x-2 ${showMap ? 'bg-blue-100' : ''}`}
+        >
+          <Navigation className="w-4 h-4" />
+          <span>{showMap ? 'Hide Map' : 'Show Map'}</span>
+        </button>
       </div>
+
+      {/* Map View */}
+      <AnimatePresence>
+        {showMap && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 400 }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-8 overflow-hidden"
+          >
+            <MapView businesses={filteredBusinesses} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Business Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -82,7 +120,7 @@ const BusinessList: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="bg-white/80 backdrop-blur-lg rounded-xl shadow-lg overflow-hidden border border-gray-200/20 hover:shadow-xl transition-all duration-200"
+            className="apple-glass-card overflow-hidden hover:shadow-xl transition-all duration-200"
           >
             <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
               <img
@@ -104,20 +142,22 @@ const BusinessList: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="font-medium text-gray-900">{business.rating}</span>
+                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {business.rating}
+                  </span>
                 </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <Users className="w-4 h-4" />
                   <span>{business.currentQueue} in queue</span>
                 </div>
               </div>
 
               <div className="space-y-3 mb-4">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <MapPin className="w-4 h-4" />
                   <span>{business.address}</span>
                 </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <Clock className="w-4 h-4" />
                   <span>Avg. {business.averageServiceTime} min service</span>
                 </div>
@@ -127,24 +167,32 @@ const BusinessList: React.FC = () => {
                 {business.services.slice(0, 3).map((service, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs rounded-full"
                   >
                     {service}
                   </span>
                 ))}
                 {business.services.length > 3 && (
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                  <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full">
                     +{business.services.length - 3} more
                   </span>
                 )}
               </div>
 
-              <Link
-                to={`/book/${business.id}`}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:shadow-lg transition-all duration-200 text-center block"
-              >
-                Book Appointment
-              </Link>
+              <div className="flex space-x-2">
+                <Link
+                  to={`/book/${business.id}`}
+                  className="flex-1 apple-button text-center"
+                >
+                  Book Appointment
+                </Link>
+                <button
+                  onClick={() => handleChatOpen(business.id, business.name)}
+                  className="apple-button-secondary p-3"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </motion.div>
         ))}
@@ -152,13 +200,28 @@ const BusinessList: React.FC = () => {
 
       {filteredBusinesses.length === 0 && (
         <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="w-8 h-8 text-gray-400" />
+          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Search className="w-8 h-8" style={{ color: 'var(--text-tertiary)' }} />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No businesses found</h3>
-          <p className="text-gray-600">Try adjusting your search criteria or filters</p>
+          <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+            No businesses found
+          </h3>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Try adjusting your search criteria or filters
+          </p>
         </div>
       )}
+
+      {/* Chat Window */}
+      <AnimatePresence>
+        {showChat && selectedBusiness && (
+          <ChatWindow
+            businessId={selectedBusiness.id}
+            businessName={selectedBusiness.name}
+            onClose={() => setShowChat(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
