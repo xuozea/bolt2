@@ -1,7 +1,44 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { motion } from 'framer-motion';
-import { MapPin, Navigation, Zap } from 'lucide-react';
+import { Navigation, MapPin, Star, Users, Clock } from 'lucide-react';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default markers in React Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom business marker icon
+const businessIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.5 0C5.6 0 0 5.6 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.6 19.4 0 12.5 0z" fill="#3B82F6"/>
+      <circle cx="12.5" cy="12.5" r="6" fill="white"/>
+      <circle cx="12.5" cy="12.5" r="3" fill="#3B82F6"/>
+    </svg>
+  `),
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+// User location marker icon
+const userIcon = new L.Icon({
+  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+    <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="10" r="8" fill="#10B981" stroke="white" stroke-width="2"/>
+      <circle cx="10" cy="10" r="3" fill="white"/>
+    </svg>
+  `),
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
 
 interface Business {
   id: string;
@@ -12,16 +49,28 @@ interface Business {
   longitude?: number;
   rating: number;
   currentQueue: number;
+  averageServiceTime: number;
+  services: string[];
 }
 
 interface MapViewProps {
   businesses: Business[];
 }
 
+// Component to handle map centering
+const MapController: React.FC<{ center: [number, number] }> = ({ center }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  
+  return null;
+};
+
 const MapView: React.FC<MapViewProps> = ({ businesses }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const { location, requestLocation, loading } = useGeolocation();
+  const [mapCenter, setMapCenter] = useState<[number, number]>([28.6139, 77.2090]); // Delhi default
 
   // Mock coordinates for Delhi area if businesses don't have coordinates
   const mockCoordinates = [
@@ -40,15 +89,20 @@ const MapView: React.FC<MapViewProps> = ({ businesses }) => {
   }));
 
   useEffect(() => {
-    // Initialize map (using a simple implementation)
-    // In a real app, you'd use Google Maps, Mapbox, or OpenStreetMap
-    if (mapRef.current) {
-      // Map initialization would go here
+    if (location) {
+      setMapCenter([location.latitude, location.longitude]);
     }
-  }, []);
+  }, [location]);
 
   const handleLocationRequest = async () => {
     await requestLocation();
+  };
+
+  const getQueueColor = (queueCount: number) => {
+    if (queueCount === 0) return 'text-green-600';
+    if (queueCount <= 2) return 'text-yellow-600';
+    if (queueCount <= 5) return 'text-orange-600';
+    return 'text-red-600';
   };
 
   return (
@@ -69,143 +123,163 @@ const MapView: React.FC<MapViewProps> = ({ businesses }) => {
 
       <div className="relative">
         {/* Map Container */}
-        <div
-          ref={mapRef}
-          className="w-full h-80 bg-gradient-to-br from-blue-100 to-green-100 dark:from-blue-900 to-green-900 rounded-lg relative overflow-hidden"
-        >
-          {/* Mock Map Background */}
-          <div className="absolute inset-0 opacity-20">
-            <svg viewBox="0 0 400 300" className="w-full h-full">
-              {/* Mock roads */}
-              <path d="M0,150 L400,150" stroke="currentColor" strokeWidth="2" />
-              <path d="M200,0 L200,300" stroke="currentColor" strokeWidth="2" />
-              <path d="M0,100 L400,100" stroke="currentColor" strokeWidth="1" />
-              <path d="M0,200 L400,200" stroke="currentColor" strokeWidth="1" />
-              <path d="M100,0 L100,300" stroke="currentColor" strokeWidth="1" />
-              <path d="M300,0 L300,300" stroke="currentColor" strokeWidth="1" />
-            </svg>
-          </div>
-
-          {/* User Location */}
-          {location && (
-            <div
-              className="absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg transform -translate-x-1/2 -translate-y-1/2 animate-pulse"
-              style={{
-                left: '50%',
-                top: '50%',
-              }}
-            >
-              <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping"></div>
-            </div>
-          )}
-
-          {/* Business Markers */}
-          {businessesWithCoords.map((business, index) => {
-            const x = 20 + (index % 4) * 90;
-            const y = 40 + Math.floor(index / 4) * 80;
-            
-            return (
-              <motion.div
-                key={business.id}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                style={{ left: `${x}%`, top: `${y}%` }}
-                onClick={() => setSelectedBusiness(business)}
-              >
-                <div className="relative">
-                  <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                    <MapPin className="w-4 h-4 text-white" />
-                  </div>
-                  {business.currentQueue > 0 && (
-                    <div className="absolute -top-2 -right-2 w-5 h-5 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {business.currentQueue}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Business Info Popup */}
-        {selectedBusiness && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-4 left-4 right-4 apple-glass-card p-4"
+        <div className="w-full h-96 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+          <MapContainer
+            center={mapCenter}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+            className="z-0"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h4 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {selectedBusiness.name}
-                </h4>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {selectedBusiness.address}
-                </p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className="text-sm flex items-center">
-                    ⭐ {selectedBusiness.rating}
-                  </span>
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {selectedBusiness.currentQueue} in queue
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedBusiness(null)}
-                className="apple-button-secondary text-sm"
+            <MapController center={mapCenter} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {/* User Location Marker */}
+            {location && (
+              <Marker
+                position={[location.latitude, location.longitude]}
+                icon={userIcon}
               >
-                Close
-              </button>
-            </div>
-          </motion.div>
-        )}
+                <Popup>
+                  <div className="text-center">
+                    <div className="font-semibold text-green-600">Your Location</div>
+                    <div className="text-sm text-gray-600">
+                      Lat: {location.latitude.toFixed(4)}<br />
+                      Lng: {location.longitude.toFixed(4)}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* Business Markers */}
+            {businessesWithCoords.map((business) => (
+              <Marker
+                key={business.id}
+                position={[business.latitude!, business.longitude!]}
+                icon={businessIcon}
+              >
+                <Popup maxWidth={300} className="custom-popup">
+                  <div className="p-2">
+                    <div className="font-semibold text-lg mb-2" style={{ color: 'var(--text-primary)' }}>
+                      {business.name}
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">{business.address}</span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        <span className="font-medium">{business.rating}</span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Users className="w-4 h-4 text-blue-500" />
+                        <span className={`font-medium ${getQueueColor(business.currentQueue)}`}>
+                          {business.currentQueue} in queue
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-purple-500" />
+                        <span className="text-gray-600">
+                          ~{business.averageServiceTime} min service
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {business.services.slice(0, 3).map((service, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                        >
+                          {service}
+                        </span>
+                      ))}
+                      {business.services.length > 3 && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          +{business.services.length - 3}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:shadow-lg transition-all">
+                        Book Appointment
+                      </button>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
       </div>
 
       {/* Legend */}
       <div className="mt-4 flex items-center justify-center space-x-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
           <span>Your Location</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
           <span>Businesses</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-          <span>Queue Count</span>
+          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+          <span>High Queue</span>
         </div>
       </div>
 
       {/* Quick Stats */}
       <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-        <div className="apple-glass-card p-3">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="apple-glass-card p-3"
+        >
           <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             {businesses.length}
           </div>
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Total Businesses
           </div>
-        </div>
-        <div className="apple-glass-card p-3">
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="apple-glass-card p-3"
+        >
           <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             {businesses.reduce((sum, b) => sum + b.currentQueue, 0)}
           </div>
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             People in Queues
           </div>
-        </div>
-        <div className="apple-glass-card p-3">
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="apple-glass-card p-3"
+        >
           <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-            {(businesses.reduce((sum, b) => sum + b.rating, 0) / businesses.length).toFixed(1)}
+            {businesses.length > 0 ? (businesses.reduce((sum, b) => sum + b.rating, 0) / businesses.length).toFixed(1) : '0'}
           </div>
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Avg Rating
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

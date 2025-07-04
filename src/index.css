@@ -4,6 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Leaflet CSS */
+@import 'leaflet/dist/leaflet.css';
+
 :root {
   /* Light Mode - Landscape Theme */
   --bg-primary: #f0f8ff;
@@ -574,6 +577,48 @@ html {
 
 [data-theme="dark"] .apple-glass-card:hover {
   box-shadow: 0 12px 40px rgba(74, 144, 226, 0.3), 0 0 0 1px rgba(74, 144, 226, 0.2);
+}
+
+/* Leaflet Map Customization */
+.leaflet-container {
+  background: var(--bg-secondary);
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px var(--shadow-color);
+}
+
+.leaflet-popup-tip {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.leaflet-control-zoom a {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  backdrop-filter: blur(20px);
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--accent-tertiary);
+}
+
+.leaflet-control-attribution {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+/* Custom Popup Styles */
+.custom-popup .leaflet-popup-content {
+  margin: 0;
+  padding: 0;
 }
 
 /* Responsive design */
